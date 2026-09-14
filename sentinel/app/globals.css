@@ -122,3 +122,10 @@ h2{font-size:19px;font-weight:650;margin:0 0 4px;letter-spacing:-.01em}
 .campo{display:grid;gap:5px}
 .campo span{font-size:13px;color:var(--ink-2)}
 .campo input,.campo select{font-size:15px;padding:10px 12px}
+
+/* Casos */
+.fila.caso{flex-wrap:wrap}
+.fila.caso .acc{align-items:center}
+.hist{font-size:13px;color:var(--ink-3);margin-top:6px;padding-left:11px;border-left:2px solid var(--line)}
+.caja .prod{background:var(--page);border:none}
+.caja .warn,.caja .nota{font-size:14px}

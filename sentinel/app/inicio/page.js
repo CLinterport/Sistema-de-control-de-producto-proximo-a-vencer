@@ -52,6 +52,9 @@ export default async function Inicio() {
             Capturar en tienda
           </Link>
         )}
+        <Link href="/casos" className="btn ghost" style={{ textDecoration: 'none' }}>
+          Ver casos
+        </Link>
         {ES_ADMIN.has(u.rol) && (
           <Link href="/maestros" className="btn ghost" style={{ textDecoration: 'none' }}>
             Maestros
