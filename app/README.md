@@ -124,3 +124,27 @@ Medido sobre las 79 capturas reales de la zona nororiente: 55 escalarían al KAM
 3 cajas no filtra nada y el KAM recibe casi todo.
 
 Se completa en la pantalla de maestros, filtrando por «solo los que faltan».
+
+---
+
+## Nota de seguridad sobre las versiones
+
+Este proyecto está fijado en **Next.js 15.5.25** y **React 19.2.8**, no en versiones
+anteriores, y no conviene bajarlas.
+
+En diciembre de 2025 se publicó CVE-2025-66478, una vulnerabilidad crítica de
+ejecución remota de código (CVSS 10.0) que afecta a aplicaciones con App Router y
+React Server Components, que es exactamente lo que usa esta app. Un atacante sin
+credenciales podía ejecutar código en el servidor con una sola petición HTTP.
+Después hubo parches adicionales por denegación de servicio y exposición de código
+fuente, y más correcciones críticas durante 2026.
+
+La línea 15.5 es la de mantenimiento a largo plazo y recibe parches de seguridad
+mensuales. Conviene revisar https://nextjs.org/blog cada cierto tiempo y subir a la
+última 15.5.x cuando salga.
+
+`npm audit` todavía reporta avisos en `postcss` y `sharp`, que son dependencias
+internas de Next.js. Afectan a la compilación y a la optimización de imágenes, no al
+manejo de peticiones, y esta app no usa optimización de imágenes. Se resuelven al
+migrar a la línea 16.x, que es un cambio mayor y conviene hacer con calma, no en
+medio del arranque del piloto.
