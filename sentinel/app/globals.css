@@ -85,3 +85,40 @@ main{padding-bottom:34px}
 /* El campo de cantidad se desplaza hacia arriba al enfocarse en pantallas bajas */
 input[type=number].grande{scroll-margin-top:76px}
 #guardar{scroll-margin-bottom:24px}
+
+/* Maestros: pantalla ancha, no de telefono */
+.ancho{max-width:960px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+.ancho .bar{border-radius:0}
+.tabs-top{margin:14px 16px 0}
+h2{font-size:19px;font-weight:650;margin:0 0 4px;letter-spacing:-.01em}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tools input[type=search]{flex:1;min-width:190px;font-size:15px;padding:11px 13px}
+.tools input:disabled{opacity:.4}
+.chk{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--ink-2);white-space:nowrap}
+.chk input{width:17px;height:17px;padding:0}
+.btn.compacto{width:auto;padding:10px 15px;font-size:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:4px 0 8px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi.alerta{border-color:#EFCB8F;background:var(--riesgo-bg)}
+.kpi .n{font-size:27px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:13px;color:var(--ink-2);margin-top:2px}
+.kpi.alerta .l{color:var(--riesgo)}
+.nota{background:var(--azul-cl);color:var(--azul-osc);border-radius:12px;padding:14px 16px;font-size:14px}
+.fila{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border-bottom:1px solid var(--line)}
+.fila:last-child{border-bottom:none}
+.fila .info{flex:1;min-width:0}
+.fila .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;margin-left:6px}
+.t-falta{background:var(--riesgo-bg);color:var(--riesgo)}
+.t-off{background:var(--vencido-bg);color:var(--vencido)}
+.t-rol{background:var(--azul-cl);color:var(--azul-osc)}
+.modal{position:fixed;inset:0;background:rgba(19,32,46,.45);display:flex;align-items:center;
+  justify-content:center;padding:18px;z-index:80}
+.caja{background:var(--card);border-radius:14px;width:100%;max-width:440px;max-height:88dvh;
+  display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.22)}
+.ch{padding:15px 19px;border-bottom:1px solid var(--line);font-weight:650}
+.cb{padding:17px 19px;display:grid;gap:13px;overflow:auto}
+.cf{padding:13px 19px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end}
+.campo{display:grid;gap:5px}
+.campo span{font-size:13px;color:var(--ink-2)}
+.campo input,.campo select{font-size:15px;padding:10px 12px}

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { usuarioActual, PUEDE_CAPTURAR } from '@/lib/sesion';
+import { usuarioActual, PUEDE_CAPTURAR, ES_ADMIN } from '@/lib/sesion';
 import { sql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +50,11 @@ export default async function Inicio() {
         {PUEDE_CAPTURAR.has(u.rol) && (
           <Link href="/capturar" className="btn" style={{ textDecoration: 'none' }}>
             Capturar en tienda
+          </Link>
+        )}
+        {ES_ADMIN.has(u.rol) && (
+          <Link href="/maestros" className="btn ghost" style={{ textDecoration: 'none' }}>
+            Maestros
           </Link>
         )}
         <p className="sub">{Number(r.unidades).toLocaleString('es-GT')} unidades bajo seguimiento.</p>
