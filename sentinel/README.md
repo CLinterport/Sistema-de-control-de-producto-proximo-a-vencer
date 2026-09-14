@@ -1,9 +1,11 @@
-# Control de producto próximo a vencer
+# SENTINEL
+
+**Control de producto próximo a vencer**
 
 Aplicación web para que el mercaderista registre en el anaquel el producto próximo
 a vencer, y para que supervisores y KAM gestionen los casos hasta cerrarlos.
 
-Construida sobre Next.js y PostgreSQL en Supabase, esquema `pvencer`.
+Construida sobre Next.js y PostgreSQL en Supabase, esquema `sentinel`.
 
 ---
 
@@ -14,7 +16,7 @@ Construida sobre Next.js y PostgreSQL en Supabase, esquema `pvencer`.
 ```bash
 git init
 git add .
-git commit -m "Sistema de control de producto proximo a vencer"
+git commit -m "SENTINEL - control de producto proximo a vencer"
 git branch -M main
 git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
 git push -u origin main
@@ -78,7 +80,7 @@ lib/
 ## Decisiones que conviene no deshacer
 
 **La app nunca habla directo con Supabase desde el navegador.** Todo pasa por el
-servidor. Dos razones: exponer el esquema `pvencer` a la API es un cambio de todo
+servidor. Dos razones: exponer el esquema `sentinel` a la API es un cambio de todo
 el proyecto y afectaría a InterCL, que comparte la misma base; y las credenciales
 no tienen por qué llegar nunca al teléfono de nadie.
 

@@ -12,7 +12,7 @@ export async function GET(req) {
   const filas = await sql`
     select id, descripcion, cantidad, fecha_vencimiento, dias_restantes, estado,
            cajas, sin_cruce_catalogo
-    from pvencer.v_deteccion
+    from sentinel.v_deteccion
     where punto_venta_id = ${pdv}::bigint
     order by dias_restantes asc limit 100`;
   return NextResponse.json({ filas });
@@ -46,7 +46,7 @@ export async function POST(req) {
       // De ahi sale la rotacion real medida en anaquel.
       const [existente] = productoId
         ? await tx`
-            select id, cantidad from pvencer.deteccion
+            select id, cantidad from sentinel.deteccion
             where punto_venta_id = ${pdvId} and producto_id = ${productoId}
               and fecha_vencimiento = ${venc}::date and estado_registro = 'activa'
             limit 1`
@@ -59,31 +59,31 @@ export async function POST(req) {
           return { requiereConfirmacion: true, anterior: existente.cantidad };
         }
         await tx`
-          update pvencer.deteccion
+          update sentinel.deteccion
              set cantidad = ${cantidad}, ultima_actualizacion = now(), actualizado_por = ${u.id}
            where id = ${existente.id}`;
         await tx`
-          insert into pvencer.deteccion_historial (deteccion_id, cantidad, observado_por)
+          insert into sentinel.deteccion_historial (deteccion_id, cantidad, observado_por)
           values (${existente.id}, ${cantidad}, ${u.id})`;
         return { id: existente.id, actualizado: true, anterior: existente.cantidad };
       }
 
       const [nueva] = await tx`
-        insert into pvencer.deteccion
+        insert into sentinel.deteccion
           (punto_venta_id, producto_id, codigo_barra_capturado, cantidad, fecha_vencimiento, capturado_por)
         values (${pdvId}, ${productoId}, ${barra}, ${cantidad}, ${venc}::date, ${u.id})
         returning id`;
       await tx`
-        insert into pvencer.deteccion_historial (deteccion_id, cantidad, observado_por)
+        insert into sentinel.deteccion_historial (deteccion_id, cantidad, observado_por)
         values (${nueva.id}, ${cantidad}, ${u.id})`;
 
       // El caso se abre solo si el estado lo exige. Lo "vivo" solo se monitorea.
       await tx`
-        insert into pvencer.caso (deteccion_id, responsable_id, cantidad_inicial)
+        insert into sentinel.caso (deteccion_id, responsable_id, cantidad_inicial)
         select ${nueva.id}, pv.supervisor_id, ${cantidad}
-        from pvencer.punto_venta pv
+        from sentinel.punto_venta pv
         where pv.id = ${pdvId}
-          and coalesce(pvencer.estado_por_dias((${venc}::date - current_date)::integer), 'vencido') <> 'vivo'
+          and coalesce(sentinel.estado_por_dias((${venc}::date - current_date)::integer), 'vencido') <> 'vivo'
         on conflict (deteccion_id) do nothing`;
 
       return { id: nueva.id, actualizado: false };

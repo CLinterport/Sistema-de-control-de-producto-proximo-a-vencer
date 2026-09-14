@@ -7,7 +7,7 @@ export async function POST(req) {
   if (!usuario || !clave)
     return NextResponse.json({ error: 'Escribe tu usuario y tu clave.' }, { status: 400 });
 
-  const filas = await sql`select * from pvencer.validar_clave(${usuario}, ${clave})`;
+  const filas = await sql`select * from sentinel.validar_clave(${usuario}, ${clave})`;
   if (!filas.length) {
     // Mismo mensaje para usuario inexistente y para clave mala: no se le revela
     // a nadie si un usuario existe. Tras 5 intentos la base bloquea 15 minutos.

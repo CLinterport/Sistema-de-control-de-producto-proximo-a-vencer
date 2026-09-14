@@ -71,8 +71,8 @@ export default function Login() {
   return (
     <form className="centro" onSubmit={entrar}>
       <div>
-        <h1>Próximos a vencer</h1>
-        <p className="sub">Entra con el usuario que te dieron.</p>
+        <h1>SENTINEL</h1>
+        <p className="sub">Control de producto próximo a vencer. Entra con el usuario que te dieron.</p>
       </div>
       {error && <div className="err">{error}</div>}
       <div>

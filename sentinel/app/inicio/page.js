@@ -15,7 +15,7 @@ export default async function Inicio() {
       count(*) filter (where estado = 'critico')   as critico,
       count(*) filter (where estado = 'vencido')   as vencido,
       coalesce(sum(cantidad), 0)                   as unidades
-    from pvencer.v_deteccion`;
+    from sentinel.v_deteccion`;
 
   return (
     <div className="movil">

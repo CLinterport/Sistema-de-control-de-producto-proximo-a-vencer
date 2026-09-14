@@ -6,22 +6,22 @@ import postgres from 'postgres';
 const globalRef = globalThis;
 
 export const sql =
-  globalRef.__pvencerSql ??
+  globalRef.__sentinelSql ??
   postgres(process.env.DATABASE_URL, {
     max: 1,
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false, // requerido por el pooler en modo transaccion
-    connection: { search_path: 'pvencer, extensions, public' },
+    connection: { search_path: 'sentinel, extensions, public' },
   });
 
-if (process.env.NODE_ENV !== 'production') globalRef.__pvencerSql = sql;
+if (process.env.NODE_ENV !== 'production') globalRef.__sentinelSql = sql;
 
 // Toda escritura importante deja rastro. Es el requisito de auditoria RF-29.
 export async function registrarBitacora({ usuarioId, entidad, entidadId, accion, antes, despues, ip }) {
   try {
     await sql`
-      insert into pvencer.bitacora (usuario_id, entidad, entidad_id, accion, valor_anterior, valor_nuevo, direccion_ip)
+      insert into sentinel.bitacora (usuario_id, entidad, entidad_id, accion, valor_anterior, valor_nuevo, direccion_ip)
       values (${usuarioId ?? null}, ${entidad}, ${entidadId ?? null}, ${accion},
               ${antes ? sql.json(antes) : null}, ${despues ? sql.json(despues) : null},
               ${ip ?? null})`;

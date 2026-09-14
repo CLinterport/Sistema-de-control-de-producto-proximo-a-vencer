@@ -1,11 +1,11 @@
 import { cookies } from 'next/headers';
 import { sql } from './db';
 
-const COOKIE = 'pv_sesion';
+const COOKIE = 'sentinel_sesion';
 
 export async function crearSesion(usuarioId, agente) {
   const [s] = await sql`
-    insert into pvencer.sesion (usuario_id, agente)
+    insert into sentinel.sesion (usuario_id, agente)
     values (${usuarioId}, ${agente ?? null})
     returning id, expira_en`;
   const jar = await cookies();
@@ -28,8 +28,8 @@ export async function usuarioActual() {
   if (!id) return null;
   try {
     const [u] = await sql`
-      update pvencer.sesion s set ultimo_uso = now()
-      from pvencer.usuario u
+      update sentinel.sesion s set ultimo_uso = now()
+      from sentinel.usuario u
       where s.id = ${id}::uuid
         and s.usuario_id = u.id
         and s.expira_en > now()
@@ -45,7 +45,7 @@ export async function cerrarSesion() {
   const jar = await cookies();
   const id = jar.get(COOKIE)?.value;
   if (id) {
-    try { await sql`delete from pvencer.sesion where id = ${id}::uuid`; } catch {}
+    try { await sql`delete from sentinel.sesion where id = ${id}::uuid`; } catch {}
   }
   jar.delete(COOKIE);
 }

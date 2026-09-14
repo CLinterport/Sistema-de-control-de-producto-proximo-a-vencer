@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Próximos a vencer',
-  description: 'Control de producto próximo a vencer',
+  title: 'SENTINEL',
+  description: 'SENTINEL · Control de producto próximo a vencer',
 };
 
 export const viewport = {
