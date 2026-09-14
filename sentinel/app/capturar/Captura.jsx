@@ -9,6 +9,12 @@ const UMBRAL = [
 ];
 const estadoDe = d => UMBRAL.find(u => (u.desde === null || d >= u.desde) && (u.hasta === null || d <= u.hasta)) ?? UMBRAL[3];
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+// "31 ago 2027" se lee de un vistazo; "2027-08-31" hay que descifrarlo.
+const fechaCorta = iso => {
+  const [a, m, d] = String(iso).slice(0, 10).split('-');
+  return `${Number(d)} ${MESES[Number(m) - 1]} ${a}`;
+};
+const unidades = n => `${n} ${n === 1 ? 'unidad' : 'unidades'}`;
 
 export default function Captura({ usuario }) {
   const [pdv, setPdv] = useState(null);
@@ -33,9 +39,23 @@ export default function Captura({ usuario }) {
     return () => clearTimeout(t);
   }, [aviso]);
 
+  // A donde regresa el boton de atras en cada paso. Sin salida atras la app
+  // se siente atrapada, y eso se nota mucho en la mano de alguien con prisa.
+  function atras() {
+    if (vista === 'tienda') { window.location.href = '/inicio'; return; }
+    if (vista === 'escanear') { setPdv(null); setVista('tienda'); return; }
+    setVista('escanear');
+  }
+
   return (
     <div className="movil">
       <div className="bar">
+        <button className="atras" onClick={atras} aria-label="Regresar">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+               stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
         <div>
           <div className="who">{usuario.nombre} · {usuario.rol.replace('_', ' ')}</div>
           <div className="tienda">{pdv ? pdv.nombre : 'Sin tienda'}</div>
@@ -66,7 +86,7 @@ export default function Captura({ usuario }) {
         )}
       </main>
 
-      {pdv && vista === 'escanear' && (
+      {pdv && (vista === 'escanear' || vista === 'buscar') && (
         <div className="foot">
           <div>
             <div className="n">{hoyLista.length}</div>
@@ -288,7 +308,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
       <div className="prev">
         <span>La última vez había</span>
         <b>{previa.cantidad}</b>
-        <span>¿Cuántas hay hoy?</span>
+        <span>¿Cuántas hay hoy? · vence {fechaCorta(previa.fecha_vencimiento)}</span>
       </div>
     )}
 
@@ -297,7 +317,19 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
     <div>
       <label className="lbl" htmlFor="ct">{previa ? 'Cantidad de hoy' : 'Cantidad en unidades'}</label>
       <input id="ct" className="grande" type="number" inputMode="numeric" min="1"
-             value={cant} onChange={e => setCant(e.target.value)} placeholder="0" autoFocus />
+             value={cant} onChange={e => setCant(e.target.value)} placeholder="0" autoFocus
+             enterKeyHint={previa ? 'done' : 'next'}
+             onKeyDown={e => {
+               if (e.key !== 'Enter') return;
+               e.preventDefault();
+               // El teclado numerico tapa el boton de guardar. Con la tecla de
+               // avanzar: si solo falta la cantidad, guarda; si falta elegir la
+               // fecha, cierra el teclado y deja ver el resto y el estado.
+               if (previa) { guardar(false); return; }
+               e.target.blur();
+               setTimeout(() => document.getElementById('guardar')?.scrollIntoView(
+                 { behavior: 'smooth', block: 'center' }), 60);
+             }} />
     </div>
 
     {!previa && (<>
@@ -316,7 +348,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
       <div><span className={`pill p-${u.e}`}>{u.txt} · {dias} días</span></div>
     </>)}
 
-    <button className="btn" disabled={guardando} onClick={() => guardar(false)}>
+    <button id="guardar" className="btn" disabled={guardando} onClick={() => guardar(false)}>
       {guardando ? 'Guardando…' : 'Guardar y seguir'}
     </button>
     <button className="btn ghost sm" onClick={onCancelar}>Cancelar</button>
@@ -324,18 +356,58 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
 }
 
 function Lista({ filas, pdv, onVolver }) {
+  const [tab, setTab] = useState('tienda');
+  const [hist, setHist] = useState(null);
+  const [cargando, setCargando] = useState(false);
+
+  useEffect(() => {
+    if (tab !== 'historial' || hist) return;
+    setCargando(true);
+    fetch('/api/captura?historial=1&dias=30')
+      .then(r => r.json())
+      .then(d => setHist(d.filas ?? []))
+      .catch(() => setHist([]))
+      .finally(() => setCargando(false));
+  }, [tab, hist]);
+
+  const datos = tab === 'tienda' ? filas : (hist ?? []);
+
   return (<>
-    <div><h1>Capturado en esta tienda</h1><p className="sub">{pdv.nombre}</p></div>
+    <div>
+      <h1>{tab === 'tienda' ? 'Capturado en esta tienda' : 'Mi historial'}</h1>
+      <p className="sub">{tab === 'tienda' ? pdv.nombre : 'Lo que has capturado en los últimos 30 días'}</p>
+    </div>
+
+    <div className="tabs">
+      <button className={tab === 'tienda' ? 'on' : ''} onClick={() => setTab('tienda')}>
+        Esta tienda
+      </button>
+      <button className={tab === 'historial' ? 'on' : ''} onClick={() => setTab('historial')}>
+        Mi historial
+      </button>
+    </div>
+
     <div className="list">
-      {filas.length ? filas.map(f => (
-        <div key={f.id} className="row" style={{ cursor: 'default' }}>
-          <div style={{ flex: 1 }}>
-            <div className="nm">{f.descripcion ?? 'Sin catálogo'}</div>
-            <div className="mt">{f.cantidad} unidades · vence {f.fecha_vencimiento.slice(0, 10)}</div>
+      {cargando ? <div className="vacio">Cargando…</div>
+        : datos.length ? datos.map(f => (
+          <div key={f.id} className="row" style={{ cursor: 'default' }}>
+            <div style={{ flex: 1 }}>
+              <div className="nm">{f.descripcion ?? 'Sin catálogo'}</div>
+              <div className="mt">
+                {unidades(f.cantidad)} · vence {fechaCorta(f.fecha_vencimiento)}
+                {tab === 'historial' && f.pdv_nombre ? ` · ${f.pdv_nombre}` : ''}
+                {f.sin_cruce_catalogo ? ' · sin catálogo' : ''}
+              </div>
+            </div>
+            <span className={`pill p-${f.estado ?? 'vencido'}`}>{f.dias_restantes} d</span>
           </div>
-          <span className={`pill p-${f.estado ?? 'vencido'}`}>{f.dias_restantes} d</span>
-        </div>
-      )) : <div className="vacio">Todavía no hay nada capturado aquí.</div>}
+        )) : (
+          <div className="vacio">
+            {tab === 'tienda'
+              ? 'Todavía no hay nada capturado aquí.'
+              : 'No has capturado nada en los últimos 30 días.'}
+          </div>
+        )}
     </div>
     <button className="btn" onClick={onVolver}>Seguir capturando</button>
   </>);

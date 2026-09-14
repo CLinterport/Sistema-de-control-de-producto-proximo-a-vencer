@@ -2,16 +2,34 @@ import { NextResponse } from 'next/server';
 import { sql, registrarBitacora } from '@/lib/db';
 import { usuarioActual, PUEDE_CAPTURAR } from '@/lib/sesion';
 
-// Lo capturado hoy en una tienda, para que el mercaderista no duplique
+// Lo capturado en una tienda, o el historial del usuario
 export async function GET(req) {
   const u = await usuarioActual();
   if (!u) return NextResponse.json({ error: 'Sesión vencida.' }, { status: 401 });
-  const pdv = new URL(req.url).searchParams.get('pdv');
+  const params = new URL(req.url).searchParams;
+
+  // Historial: todo lo que esta persona ha capturado, sin importar la tienda.
+  // Sirve para revisar lo de ayer sin tener que volver a entrar a cada tienda.
+  if (params.get('historial')) {
+    const dias = Math.min(Number(params.get('dias') ?? 7) || 7, 90);
+    const filas = await sql`
+      select d.id, d.descripcion, d.cantidad, d.fecha_vencimiento, d.dias_restantes,
+             d.estado, d.pdv_nombre, d.capturado_en, d.ultima_actualizacion,
+             d.sin_cruce_catalogo
+      from sentinel.v_deteccion d
+      where d.capturado_por = ${u.id}
+        and d.capturado_en > now() - (${dias} || ' days')::interval
+      order by d.capturado_en desc
+      limit 200`;
+    return NextResponse.json({ filas });
+  }
+
+  const pdv = params.get('pdv');
   if (!pdv) return NextResponse.json({ filas: [] });
 
   const filas = await sql`
     select id, descripcion, cantidad, fecha_vencimiento, dias_restantes, estado,
-           cajas, sin_cruce_catalogo
+           cajas, sin_cruce_catalogo, capturado_en
     from sentinel.v_deteccion
     where punto_venta_id = ${pdv}::bigint
     order by dias_restantes asc limit 100`;

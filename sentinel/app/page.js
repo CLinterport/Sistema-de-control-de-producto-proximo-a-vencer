@@ -20,12 +20,21 @@ export default function Login() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario, clave }),
       });
-      const d = await r.json();
+      // El servidor puede responder con una pagina de error, no con JSON.
+      // Confundir eso con falta de senal manda a buscar en el lugar equivocado.
+      let d = null;
+      try { d = await r.json(); } catch {
+        setError(r.status >= 500
+          ? 'El sistema no pudo consultar la base de datos. Avisa a soporte.'
+          : 'Respuesta inesperada del sistema. Intenta de nuevo.');
+        return;
+      }
       if (!r.ok) { setError(d.error ?? 'No se pudo entrar.'); return; }
       // Nadie sigue usando la clave temporal del piloto
       if (d.debeCambiar) { setFase('cambiar'); return; }
       router.push('/inicio');
     } catch {
+      // Aqui si es falta de red de verdad: fetch nunca llego a responder
       setError('Sin conexión. Revisa tu señal e intenta de nuevo.');
     } finally { setCargando(false); }
   }
