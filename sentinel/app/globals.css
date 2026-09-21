@@ -136,8 +136,11 @@ input[type=number].grande{font-size:var(--t-hero);font-weight:650;text-align:cen
 
 /* Fecha en tres casillas, teclado numerico, avance automatico */
 .fecha3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--e1)}
+/* min-width:0 es obligatorio: un input sin atributo size reclama ~20 caracteres
+   de ancho, y un elemento de rejilla no se encoge por debajo de su contenido
+   (min-width:auto). Sin esto la fila mide ~1000px y el 1fr nunca se aplica. */
 .fecha3 input,.fecha3 select{text-align:center;font-size:var(--t-dato);font-weight:600;
-  padding:var(--e1);font-variant-numeric:tabular-nums}
+  padding:var(--e1);font-variant-numeric:tabular-nums;min-width:0;width:100%}
 .enlace{background:none;border:none;padding:var(--e1) 0;font-size:14px;color:var(--azul);
   text-decoration:underline;cursor:pointer;font-family:inherit;min-height:44px;
   text-align:left}
@@ -272,6 +275,11 @@ input[aria-invalid="true"]{border-color:var(--critico);border-width:2px}
 /* El teclado numerico no debe dejar el boton fuera de alcance */
 input[type=number].grande{scroll-margin-top:76px}
 #guardar{scroll-margin-bottom:var(--e4)}
+
+/* Red de seguridad: ningun hijo directo de main puede forzar scroll lateral.
+   Si algo desborda, se ve recortado y no descuadra la pantalla entera. */
+main > *{min-width:0;max-width:100%}
+body{overflow-x:hidden}
 
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}

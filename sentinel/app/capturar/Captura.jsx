@@ -414,7 +414,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, meta, onListo, onCancelar }) {
         {previa ? 'Cantidad de hoy' : 'Cuántas hay'} en {modo}
       </label>
       <input id="ct" ref={refCant} className="grande" type="number" inputMode="numeric" min="1"
-             value={cant} onChange={e => setCant(e.target.value)} placeholder="0" autoFocus
+             value={cant} onChange={e => setCant(e.target.value)} autoFocus
              aria-invalid={campoMalo === 'cantidad' ? 'true' : undefined}
              enterKeyHint={previa ? 'done' : 'next'}
              onKeyDown={e => {
