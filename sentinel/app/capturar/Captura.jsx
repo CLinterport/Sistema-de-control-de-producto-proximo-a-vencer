@@ -10,11 +10,19 @@ const UMBRAL = [
 const estadoDe = d => UMBRAL.find(u => (u.desde === null || d >= u.desde) && (u.hasta === null || d <= u.hasta)) ?? UMBRAL[3];
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 // "31 ago 2027" se lee de un vistazo; "2027-08-31" hay que descifrarlo.
-const fechaCorta = iso => {
+const fechaCorta = (iso, precision) => {
   const [a, m, d] = String(iso).slice(0, 10).split('-');
-  return `${Number(d)} ${MESES[Number(m) - 1]} ${a}`;
+  return precision === 'mes' ? `${MESES[Number(m) - 1]} ${a}` : `${Number(d)} ${MESES[Number(m) - 1]} ${a}`;
 };
-const unidades = n => `${n} ${n === 1 ? 'unidad' : 'unidades'}`;
+const unidades = n => `${n} ${Number(n) === 1 ? 'unidad' : 'unidades'}`;
+const RECORDADA = 'sentinel.tienda';
+
+function leerRecordada() {
+  try { return JSON.parse(localStorage.getItem(RECORDADA) ?? 'null'); } catch { return null; }
+}
+function guardarRecordada(p) {
+  try { localStorage.setItem(RECORDADA, JSON.stringify(p)); } catch { /* modo privado */ }
+}
 
 export default function Captura({ usuario }) {
   const [pdv, setPdv] = useState(null);
@@ -22,25 +30,39 @@ export default function Captura({ usuario }) {
   const [prod, setProd] = useState(null);
   const [barra, setBarra] = useState(null);
   const [hoyLista, setHoyLista] = useState([]);
+  const [meta, setMeta] = useState({});
   const [aviso, setAviso] = useState('');
+
+  // La camara se pide una sola vez y el flujo la conserva entre lineas. Antes
+  // se desmontaba al pasar a la cantidad y volvia a pedir permiso al regresar:
+  // uno o dos segundos por linea sobre un presupuesto de quince.
+  const camara = useRef(null);
+  const pedirCamara = useCallback(async () => {
+    if (camara.current) return camara.current;
+    camara.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    return camara.current;
+  }, []);
+  useEffect(() => () => { camara.current?.getTracks().forEach(t => t.stop()); }, []);
 
   const cargarHoy = useCallback(async (id) => {
     try {
       const r = await fetch(`/api/captura?pdv=${id}`);
       const d = await r.json();
       setHoyLista(d.filas ?? []);
+      setMeta({ tienda: d.tienda, regionPropuesta: d.regionPropuesta, regiones: d.regiones ?? [] });
+      if (d.tienda) setPdv(p => (p && p.id === d.tienda.id ? { ...p, ...d.tienda } : p));
     } catch { /* sin señal: la lista se queda como está */ }
   }, []);
 
-  useEffect(() => { if (pdv) cargarHoy(pdv.id); }, [pdv, cargarHoy]);
+  useEffect(() => { if (pdv) cargarHoy(pdv.id); }, [pdv?.id, cargarHoy]); // eslint-disable-line
   useEffect(() => {
     if (!aviso) return;
     const t = setTimeout(() => setAviso(''), 1900);
     return () => clearTimeout(t);
   }, [aviso]);
 
-  // A donde regresa el boton de atras en cada paso. Sin salida atras la app
-  // se siente atrapada, y eso se nota mucho en la mano de alguien con prisa.
+  function elegir(p) { guardarRecordada(p); setPdv(p); setVista('escanear'); }
+
   function atras() {
     if (vista === 'tienda') { window.location.href = '/inicio'; return; }
     if (vista === 'escanear') { setPdv(null); setVista('tienda'); return; }
@@ -57,16 +79,17 @@ export default function Captura({ usuario }) {
           </svg>
         </button>
         <div>
+          <div className="tienda">{pdv ? pdv.nombre : 'Elegir tienda'}</div>
           <div className="who">{usuario.nombre} · {usuario.rol.replace('_', ' ')}</div>
-          <div className="tienda">{pdv ? pdv.nombre : 'Sin tienda'}</div>
         </div>
         {pdv && <button onClick={() => { setPdv(null); setVista('tienda'); }}>Cambiar</button>}
       </div>
 
       <main>
-        {vista === 'tienda' && <Tienda onElegir={p => { setPdv(p); setVista('escanear'); }} />}
+        {vista === 'tienda' && <Tienda onElegir={elegir} />}
         {vista === 'escanear' && (
           <Escanear
+            pedirCamara={pedirCamara}
             onProducto={(p, b) => { setProd(p); setBarra(b); setVista('cantidad'); }}
             onBuscar={() => setVista('buscar')} />
         )}
@@ -77,7 +100,7 @@ export default function Captura({ usuario }) {
         )}
         {vista === 'cantidad' && (
           <Cantidad
-            pdv={pdv} prod={prod} barra={barra} hoyLista={hoyLista}
+            pdv={pdv} prod={prod} barra={barra} hoyLista={hoyLista} meta={meta}
             onListo={msg => { setAviso(msg); cargarHoy(pdv.id); setVista('escanear'); }}
             onCancelar={() => setVista('escanear')} />
         )}
@@ -95,7 +118,7 @@ export default function Captura({ usuario }) {
           <button className="btn ghost" onClick={() => setVista('lista')}>Ver lo capturado</button>
         </div>
       )}
-      {aviso && <div className="toast">{aviso}</div>}
+      {aviso && <div className="toast" role="status">{aviso}</div>}
     </div>
   );
 }
@@ -103,6 +126,9 @@ export default function Captura({ usuario }) {
 function Tienda({ onElegir }) {
   const [q, setQ] = useState('');
   const [filas, setFilas] = useState([]);
+  const [recordada, setRecordada] = useState(null);
+
+  useEffect(() => { setRecordada(leerRecordada()); }, []);
   useEffect(() => {
     const t = setTimeout(async () => {
       const r = await fetch(`/api/buscar?tipo=pdv&q=${encodeURIComponent(q)}`);
@@ -111,6 +137,21 @@ function Tienda({ onElegir }) {
     }, 220);
     return () => clearTimeout(t);
   }, [q]);
+
+  // Casi siempre se capturan varias lineas seguidas en la misma tienda. Empezar
+  // por preguntar si sigue ahi ahorra tres toques por visita.
+  if (recordada && !q) return (<>
+    <div>
+      <h1>¿Sigues en esta tienda?</h1>
+      <p className="sub">La última donde capturaste.</p>
+    </div>
+    <div className="prod">
+      <div className="d">{recordada.nombre}</div>
+      <div className="c">{recordada.cadena_grupo ?? 'sin cadena'} · {recordada.codigo}</div>
+    </div>
+    <button className="btn" onClick={() => onElegir(recordada)}>Sí, seguir aquí</button>
+    <button className="btn ghost sm" onClick={() => setRecordada(null)}>Estoy en otra tienda</button>
+  </>);
 
   return (<>
     <div>
@@ -124,15 +165,20 @@ function Tienda({ onElegir }) {
         <button key={p.id} className="row" onClick={() => onElegir(p)}>
           <div>
             <div className="nm">{p.nombre}</div>
-            <div className="mt">{p.cadena_grupo ?? 'sin cadena'} · {p.codigo}</div>
+            <div className="mt">
+              {p.cadena_grupo ?? 'sin cadena'} · {p.codigo}
+              {p.reciente ? ' · ya capturaste aquí' : ''}
+            </div>
           </div>
         </button>
-      )) : <div className="vacio">No hay tiendas con ese nombre.</div>}
+      )) : <div className="vacio">
+        {q ? 'No hay tiendas con ese nombre.' : 'Escribe el nombre de la tienda para buscarla.'}
+      </div>}
     </div>
   </>);
 }
 
-function Escanear({ onProducto, onBuscar }) {
+function Escanear({ onProducto, onBuscar, pedirCamara }) {
   const v = useRef(null);
   const [hint, setHint] = useState('Pidiendo permiso de cámara…');
   const [manual, setManual] = useState(false);
@@ -141,7 +187,6 @@ function Escanear({ onProducto, onBuscar }) {
 
   useEffect(() => {
     vivo.current = true;
-    let stream = null;
     const sinCamara = m => { setHint(m); setManual(true); };
 
     (async () => {
@@ -150,18 +195,20 @@ function Escanear({ onProducto, onBuscar }) {
       if (!('BarcodeDetector' in window)) return sinCamara('Este navegador no lee códigos de barras. Escribe el código o busca por nombre.');
       try {
         const det = new window.BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','itf'] });
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (!vivo.current) { stream.getTracks().forEach(t => t.stop()); return; }
+        const stream = await pedirCamara();
+        if (!vivo.current) return;
         v.current.srcObject = stream;
         await v.current.play();
         setHint('Buscando código…');
+        // Ocho lecturas por segundo alcanzan de sobra. A sesenta el telefono
+        // se calienta y la bateria no llega al final de la ruta.
         const leer = async () => {
           if (!vivo.current) return;
           try {
             const c = await det.detect(v.current);
             if (c.length) { resolver(c[0].rawValue); return; }
           } catch {}
-          requestAnimationFrame(leer);
+          setTimeout(leer, 120);
         };
         leer();
       } catch (err) {
@@ -171,7 +218,9 @@ function Escanear({ onProducto, onBuscar }) {
       }
     })();
 
-    return () => { vivo.current = false; if (stream) stream.getTracks().forEach(t => t.stop()); };
+    // La camara no se apaga aqui: vive en el componente de arriba para no
+    // volver a pedirla en cada linea.
+    return () => { vivo.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -241,40 +290,79 @@ function Buscar({ onElegir, onVolver }) {
   </>);
 }
 
-function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
+function Cantidad({ pdv, prod, barra, hoyLista, meta, onListo, onCancelar }) {
   const hoy = new Date();
+  const upc = prod?.unidades_por_caja ?? null;
+
+  // Arranca en cajas si el producto se vende por caja y se sabe cuantas trae.
+  // La bodega mueve cajas; C-Store mueve unidades sueltas. Los dos son reales.
+  const [modo, setModo] = useState(prod?.medida === 'CJ' && upc ? 'cajas' : 'unidades');
   const [cant, setCant] = useState('');
-  const [mes, setMes] = useState(hoy.getMonth() + 1);
-  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [dia, setDia] = useState('');
+  const [mes, setMes] = useState('');
+  const [anio, setAnio] = useState('');
+  const [precision, setPrecision] = useState('dia');
+  const [region, setRegion] = useState(meta.regionPropuesta ?? '');
   const [error, setError] = useState('');
+  const [campoMalo, setCampoMalo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
+  const refMes = useRef(null), refAnio = useRef(null), refCant = useRef(null);
 
-  // Si ese producto ya se capturó en esta tienda, se actualiza la cantidad
   const previa = prod ? hoyLista.find(f => f.descripcion === prod.descripcion) : null;
+
+  // Las unidades son la moneda del sistema. Las cajas son solo una forma de
+  // teclear menos: la API recibe y guarda siempre unidades.
+  const enUnidades = modo === 'cajas' && upc ? Math.round(Number(cant || 0) * upc) : Number(cant || 0);
+
+  const mesN = Number(mes), anioN = anio.length === 2 ? 2000 + Number(anio) : Number(anio);
+  const diaN = precision === 'mes' ? 1 : Number(dia);
+  const fechaOk = previa || (mesN >= 1 && mesN <= 12 && anioN >= hoy.getFullYear() - 1
+    && anioN <= hoy.getFullYear() + 3 && diaN >= 1 && diaN <= 31);
   const fecha = previa
     ? previa.fecha_vencimiento.slice(0, 10)
-    : `${anio}-${String(mes).padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`;
-  const dias = Math.round((new Date(fecha + 'T00:00:00') - new Date(hoy.toDateString())) / 86400000);
-  const u = estadoDe(dias);
+    : fechaOk ? `${anioN}-${String(mesN).padStart(2, '0')}-${String(diaN).padStart(2, '0')}` : null;
+  // Con precision de mes el riesgo se mide contra el dia 1: pesimista a proposito.
+  const dias = fecha
+    ? Math.round((new Date(fecha + 'T00:00:00') - new Date(hoy.toDateString())) / 86400000)
+    : null;
+  const u = dias === null ? null : estadoDe(dias);
+
+  // Los lotes se repiten en un mismo anaquel. Reusar una fecha ya capturada hoy
+  // en esta tienda quita tres toques.
+  const fechasHoy = [...new Map(hoyLista.filter(f => f.fecha_vencimiento)
+    .map(f => [f.fecha_vencimiento.slice(0, 10), f])).values()].slice(0, 3);
+
+  function ponerFecha(iso, prec) {
+    const [a, m, d] = iso.split('-');
+    setAnio(a.slice(2)); setMes(String(Number(m))); setDia(String(Number(d)));
+    setPrecision(prec ?? 'dia');
+  }
 
   async function guardar(confirmaAumento = false) {
-    setError('');
-    const n = parseInt(cant, 10);
-    if (!Number.isInteger(n) || n < 1) return setError('Escribe la cantidad antes de guardar.');
+    setError(''); setCampoMalo('');
+    if (!Number.isInteger(enUnidades) || enUnidades < 1) {
+      setCampoMalo('cantidad');
+      return setError('Escribe la cantidad antes de guardar.');
+    }
+    if (!fecha) {
+      setCampoMalo('fecha');
+      return setError('Revisa la fecha de vencimiento.');
+    }
     setGuardando(true);
     try {
       const r = await fetch('/api/captura', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pdvId: pdv.id, productoId: prod?.id ?? null, barra,
-          cantidad: n, vencimiento: fecha, confirmaAumento,
+          cantidad: enUnidades, vencimiento: fecha, fechaPrecision: precision,
+          region: pdv.region ? null : (region || null), confirmaAumento,
         }),
       });
       const d = await r.json();
       if (d.requiereConfirmacion) { setConfirmar(d.anterior); return; }
       if (!r.ok) { setError(d.error ?? 'No se pudo guardar.'); return; }
-      onListo(d.actualizado ? `Actualizado: ${n} unidades` : 'Guardado');
+      onListo(d.actualizado ? `Actualizado: ${unidades(enUnidades)}` : 'Guardado');
     } catch {
       setError('Sin señal. Acércate a donde haya cobertura e intenta de nuevo.');
     } finally { setGuardando(false); }
@@ -282,7 +370,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
 
   if (confirmar !== null) return (<>
     <div className="warn">
-      Antes había <b>{confirmar}</b> y ahora pusiste <b>{cant}</b>. ¿Llegó producto nuevo del mismo lote?
+      Antes había <b>{confirmar}</b> y ahora pusiste <b>{enUnidades}</b>. ¿Llegó producto nuevo del mismo lote?
     </div>
     <button className="btn" onClick={() => { setConfirmar(null); guardar(true); }}>Sí, es producto nuevo</button>
     <button className="btn ghost sm" onClick={() => setConfirmar(null)}>No, corregir la cantidad</button>
@@ -294,7 +382,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
         <div className="d">{prod.descripcion}</div>
         <div className="c">
           {prod.codigo_sap}{barra ? ` · ${barra}` : ''}
-          {prod.unidades_por_caja ? ` · ${prod.unidades_por_caja} por caja` : ''}
+          {upc ? ` · ${upc} por caja` : ' · caja sin definir'}
         </div>
       </div>
     ) : (
@@ -308,48 +396,115 @@ function Cantidad({ pdv, prod, barra, hoyLista, onListo, onCancelar }) {
       <div className="prev">
         <span>La última vez había</span>
         <b>{previa.cantidad}</b>
-        <span>¿Cuántas hay hoy? · vence {fechaCorta(previa.fecha_vencimiento)}</span>
+        <span>¿Cuántas hay hoy? · vence {fechaCorta(previa.fecha_vencimiento, previa.fecha_precision)}</span>
       </div>
     )}
 
-    {error && <div className="err">{error}</div>}
+    {error && <div className="err" role="alert">{error}</div>}
+
+    <div className="seg" role="group" aria-label="Contar en unidades o en cajas">
+      <button className={modo === 'unidades' ? 'on' : ''} onClick={() => setModo('unidades')}>Unidades</button>
+      <button className={modo === 'cajas' ? 'on' : ''} disabled={!upc}
+              onClick={() => upc && setModo('cajas')}>Cajas</button>
+    </div>
+    {!upc && <div className="hint">Falta el dato de cuántas unidades trae la caja.</div>}
 
     <div>
-      <label className="lbl" htmlFor="ct">{previa ? 'Cantidad de hoy' : 'Cantidad en unidades'}</label>
-      <input id="ct" className="grande" type="number" inputMode="numeric" min="1"
+      <label className="lbl" htmlFor="ct">
+        {previa ? 'Cantidad de hoy' : 'Cuántas hay'} en {modo}
+      </label>
+      <input id="ct" ref={refCant} className="grande" type="number" inputMode="numeric" min="1"
              value={cant} onChange={e => setCant(e.target.value)} placeholder="0" autoFocus
+             aria-invalid={campoMalo === 'cantidad' ? 'true' : undefined}
              enterKeyHint={previa ? 'done' : 'next'}
              onKeyDown={e => {
                if (e.key !== 'Enter') return;
                e.preventDefault();
-               // El teclado numerico tapa el boton de guardar. Con la tecla de
-               // avanzar: si solo falta la cantidad, guarda; si falta elegir la
-               // fecha, cierra el teclado y deja ver el resto y el estado.
                if (previa) { guardar(false); return; }
                e.target.blur();
-               setTimeout(() => document.getElementById('guardar')?.scrollIntoView(
-                 { behavior: 'smooth', block: 'center' }), 60);
              }} />
+      {modo === 'cajas' && upc && (
+        <div className="conv">{cant || 0} cajas = {enUnidades} unidades</div>
+      )}
     </div>
 
     {!previa && (<>
       <div>
-        <span className="lbl">Vence en</span>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 10 }}>
-          <select value={mes} onChange={e => setMes(+e.target.value)}>
-            {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-          </select>
-          <select value={anio} onChange={e => setAnio(+e.target.value)}>
-            {[hoy.getFullYear(), hoy.getFullYear() + 1, hoy.getFullYear() + 2].map(a =>
-              <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
+        <span className="lbl">Vence</span>
+        {precision === 'dia' ? (
+          <div className="fecha3">
+            <input inputMode="numeric" maxLength={2} placeholder="dd" value={dia}
+                   aria-label="Día" aria-invalid={campoMalo === 'fecha' ? 'true' : undefined}
+                   onChange={e => {
+                     const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+                     setDia(v);
+                     if (v.length === 2) refMes.current?.focus();
+                   }} />
+            <input ref={refMes} inputMode="numeric" maxLength={2} placeholder="mm" value={mes}
+                   aria-label="Mes"
+                   onChange={e => {
+                     const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+                     setMes(v);
+                     if (v.length === 2) refAnio.current?.focus();
+                   }} />
+            <input ref={refAnio} inputMode="numeric" maxLength={2} placeholder="aa" value={anio}
+                   aria-label="Año"
+                   onChange={e => setAnio(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+          </div>
+        ) : (
+          <div className="fecha3" style={{ gridTemplateColumns: '2fr 1fr' }}>
+            <select value={mes} onChange={e => setMes(e.target.value)} aria-label="Mes">
+              <option value="">mes</option>
+              {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <input inputMode="numeric" maxLength={2} placeholder="aa" value={anio}
+                   aria-label="Año"
+                   onChange={e => setAnio(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+          </div>
+        )}
+        <button className="enlace" onClick={() => setPrecision(p => p === 'dia' ? 'mes' : 'dia')}>
+          {precision === 'dia' ? 'El empaque solo dice mes y año' : 'Sí trae el día exacto'}
+        </button>
       </div>
-      <div><span className={`pill p-${u.e}`}>{u.txt} · {dias} días</span></div>
+
+      {fechasHoy.length > 0 && !dia && !mes && (
+        <div className="chips">
+          {fechasHoy.map(f => (
+            <button key={f.fecha_vencimiento} className="chip"
+                    onClick={() => ponerFecha(f.fecha_vencimiento.slice(0, 10), f.fecha_precision)}>
+              {fechaCorta(f.fecha_vencimiento, f.fecha_precision)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {u && (
+        <div className={`estado e-${u.e}${precision === 'mes' ? ' aprox' : ''}`}>
+          <div className="e">{u.txt} · {dias} días</div>
+          <div className="x">
+            vence {fechaCorta(fecha, precision)}
+            {precision === 'mes' ? ' · día exacto desconocido, se mide contra el día 1' : ''}
+          </div>
+        </div>
+      )}
     </>)}
 
+    {/* La region se completa al primer uso, propuesta desde la zona de quien
+        captura. No es un formulario aparte y no bloquea la captura. */}
+    {pdv && !pdv.region && (
+      <div className="nota">
+        Zona de esta tienda:{' '}
+        <select value={region} onChange={e => setRegion(e.target.value)}
+                aria-label="Región de la tienda"
+                style={{ width: 'auto', display: 'inline-block', minHeight: 40, padding: '6px 10px' }}>
+          <option value="">sin definir</option>
+          {(meta.regiones ?? []).map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+    )}
+
     <button id="guardar" className="btn" disabled={guardando} onClick={() => guardar(false)}>
-      {guardando ? 'Guardando…' : 'Guardar y seguir'}
+      {guardando ? 'Guardando…' : 'Guardar y escanear'}
     </button>
     <button className="btn ghost sm" onClick={onCancelar}>Cancelar</button>
   </>);
@@ -379,12 +534,8 @@ function Lista({ filas, pdv, onVolver }) {
     </div>
 
     <div className="tabs">
-      <button className={tab === 'tienda' ? 'on' : ''} onClick={() => setTab('tienda')}>
-        Esta tienda
-      </button>
-      <button className={tab === 'historial' ? 'on' : ''} onClick={() => setTab('historial')}>
-        Mi historial
-      </button>
+      <button className={tab === 'tienda' ? 'on' : ''} onClick={() => setTab('tienda')}>Esta tienda</button>
+      <button className={tab === 'historial' ? 'on' : ''} onClick={() => setTab('historial')}>Mi historial</button>
     </div>
 
     <div className="list">
@@ -394,7 +545,7 @@ function Lista({ filas, pdv, onVolver }) {
             <div style={{ flex: 1 }}>
               <div className="nm">{f.descripcion ?? 'Sin catálogo'}</div>
               <div className="mt">
-                {unidades(f.cantidad)} · vence {fechaCorta(f.fecha_vencimiento)}
+                {unidades(f.cantidad)} · vence {fechaCorta(f.fecha_vencimiento, f.fecha_precision)}
                 {tab === 'historial' && f.pdv_nombre ? ` · ${f.pdv_nombre}` : ''}
                 {f.sin_cruce_catalogo ? ' · sin catálogo' : ''}
               </div>
