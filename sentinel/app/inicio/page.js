@@ -5,6 +5,8 @@ import { sql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+const VE_TABLERO = ['gerencia', 'administrador'];
+
 export default async function Inicio() {
   const u = await usuarioActual();
   if (!u) redirect('/');
@@ -21,8 +23,8 @@ export default async function Inicio() {
     <div className="movil">
       <div className="bar">
         <div>
-          <div className="who">{u.rol.replace('_', ' ')}</div>
           <div className="tienda">{u.nombre}</div>
+          <div className="who">{u.rol.replace('_', ' ')}</div>
         </div>
       </div>
       <main>
@@ -55,6 +57,11 @@ export default async function Inicio() {
         <Link href="/casos" className="btn ghost" style={{ textDecoration: 'none' }}>
           Ver casos
         </Link>
+        {VE_TABLERO.includes(u.rol) && (
+          <Link href="/tablero" className="btn ghost" style={{ textDecoration: 'none' }}>
+            Tablero de gerencia
+          </Link>
+        )}
         {ES_ADMIN.has(u.rol) && (
           <Link href="/maestros" className="btn ghost" style={{ textDecoration: 'none' }}>
             Maestros
