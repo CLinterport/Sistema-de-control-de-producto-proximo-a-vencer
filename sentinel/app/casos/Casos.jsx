@@ -7,8 +7,10 @@ const fechaCorta = iso => {
   return `${Number(d)} ${MESES[Number(m) - 1]} ${a}`;
 };
 const unidades = n => `${n} ${Number(n) === 1 ? 'unidad' : 'unidades'}`;
+const TXT = { vivo:'Vivo', en_riesgo:'En riesgo', critico:'Crítico', vencido:'Vencido' };
 
 // Cada rol entra directo a su bandeja. Ver pestañas que no le tocan solo estorba.
+// El supervisor jr propone y no autoriza: su bandeja no incluye revisiones.
 const BANDEJAS = {
   supervisor_jr: [['sin_propuesta', 'Por proponer'], ['todos', 'Todos']],
   supervisor:    [['revision_supervisor', 'Por revisar'], ['sin_propuesta', 'Sin propuesta'], ['todos', 'Todos']],
@@ -51,7 +53,7 @@ export default function Casos({ usuario }) {
       body: JSON.stringify(cuerpo),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) return { error: j.error ?? 'No se pudo completar.' };
+    if (!r.ok) return { error: j.error ?? 'No se pudo completar.', datos: j };
     return j;
   }
 
@@ -68,8 +70,8 @@ export default function Casos({ usuario }) {
           </svg>
         </a>
         <div>
-          <div className="who">{usuario.nombre} · {usuario.rol.replace('_', ' ')}</div>
           <div className="tienda">Casos</div>
+          <div className="who">{usuario.nombre} · {usuario.rol.replace('_', ' ')}</div>
         </div>
       </div>
 
@@ -84,7 +86,7 @@ export default function Casos({ usuario }) {
       )}
 
       <main>
-        {d?.error && <div className="err">{d.error}</div>}
+        {d?.error && <div className="err" role="alert">{d.error}</div>}
         {cargando && <div className="vacio">Cargando…</div>}
 
         {!cargando && d?.filas?.length === 0 && (
@@ -97,39 +99,79 @@ export default function Casos({ usuario }) {
           </div>
         )}
 
-        {!cargando && d?.filas?.map(f => (
-          <Caso key={f.caso_id} f={f} rol={usuario.rol} limite={d.limiteCajas}
-                onAccion={(tipo) => setModal({ tipo, f })} />
-        ))}
+        {!cargando && d?.filas?.length > 0 && (
+          <div className="list">
+            {d.filas.map(f => (
+              <Caso key={f.caso_id} f={f} rol={usuario.rol} veDinero={d.veDinero}
+                    onAccion={(tipo) => setModal({ tipo, f })} />
+            ))}
+          </div>
+        )}
       </main>
 
       {modal && (
         <Modal m={modal} d={d} onCerrar={() => setModal(null)}
+               onReabrir={(tipo, f) => setModal({ tipo, f })}
                onEnviar={async (metodo, cuerpo) => {
                  const r = await enviar(metodo, cuerpo);
-                 if (r.error) return r.error;
+                 if (r.error) return r;
                  setModal(null);
-                 setAviso(r.perdida ? 'Registrado como pérdida' : 'Listo');
+                 setAviso(r.perdida ? 'Registrado como pérdida'
+                   : r.kamNombre ? `Pasó a ${r.kamNombre}` : 'Listo');
                  cargar();
                  return null;
                }} />
       )}
-      {aviso && <div className="toast">{aviso}</div>}
+      {aviso && <div className="toast" role="status">{aviso}</div>}
     </div>
   );
 }
 
-function Caso({ f, rol, limite, onAccion }) {
+// En el teléfono es una tarjeta con una sola acción principal. Tres botones de
+// 14px alineados a la derecha era una trampa para el pulgar, y los usuarios
+// principales de esta pantalla son supervisores que están en el pasillo.
+function Caso({ f, rol, veDinero, onAccion }) {
   const superaLimite = f.nivel_requerido === 'kam';
+  const [abierto, setAbierto] = useState(false);
+
+  const acciones = [];
+  if (!f.accion_id && ['supervisor_jr', 'supervisor', 'administrador'].includes(rol))
+    acciones.push(['proponer', 'Proponer acción', true]);
+  if (f.estado_accion === 'en_revision_supervisor' && ['supervisor', 'administrador'].includes(rol))
+    acciones.push(superaLimite ? ['escalar', 'Trasladar al KAM', true] : ['autorizar', 'Autorizar', true]);
+  if (f.estado_accion === 'en_revision_kam' && ['kam', 'administrador'].includes(rol))
+    acciones.push(['autorizar', 'Autorizar', true]);
+  if (['en_revision_supervisor', 'en_revision_kam'].includes(f.estado_accion)
+      && ['supervisor', 'kam', 'administrador'].includes(rol))
+    acciones.push(['rechazar', 'Rechazar', false]);
+  if (f.estado_accion === 'autorizada')
+    acciones.push(['ejecutar', 'Marcar hecho', true]);
+
+  const principal = acciones.find(a => a[2]) ?? acciones[0];
+  const otras = acciones.filter(a => a !== principal);
+
   return (
     <div className="fila caso">
       <div className="info">
+        <div className="cab">
+          <span className={`pill p-${f.estado}`}>{TXT[f.estado] ?? f.estado} · {f.dias_restantes} d</span>
+          <span className="mt" style={{ marginTop: 0 }}>
+            {unidades(f.cantidad)}{f.cajas ? ` · ${f.cajas} cajas` : ' · caja sin definir'}
+          </span>
+        </div>
         <div className="nm">{f.descripcion ?? 'Sin catálogo'}</div>
         <div className="mt">
-          {f.pdv_nombre} · {unidades(f.cantidad)}
-          {f.cajas ? ` · ${f.cajas} cajas` : ' · caja sin definir'}
-          {' · vence '}{fechaCorta(f.fecha_vencimiento)}
+          {f.pdv_nombre} · vence {fechaCorta(f.fecha_vencimiento)}
+          {f.fecha_precision === 'mes' ? ' (día exacto desconocido)' : ''}
+          {veDinero && f.valor_en_riesgo ? ` · Q ${Number(f.valor_en_riesgo).toLocaleString('es-GT')}` : ''}
         </div>
+
+        {f.por_clasificar && (
+          <div className="warn" style={{ marginTop: 8 }}>
+            Tienda sin clasificar: el sistema no sabe a qué KAM pertenece.
+          </div>
+        )}
+
         {f.accion_id && (
           <div className="hist">
             {f.tipo_accion} por {unidades(f.cantidad_unidades)}
@@ -138,128 +180,176 @@ function Caso({ f, rol, limite, onAccion }) {
             {f.autorizada_por ? ` · autorizó ${f.autorizada_por}` : ''}
           </div>
         )}
-      </div>
-      <div className="acc">
-        <span className={`pill p-${f.estado}`}>{f.dias_restantes} d</span>
 
-        {!f.accion_id && ['supervisor_jr', 'supervisor', 'administrador'].includes(rol) && (
-          <button className="btn compacto" onClick={() => onAccion('proponer')}>Proponer</button>
+        {f.estado_accion === 'en_revision_kam' && !['kam', 'administrador'].includes(rol) && (
+          <div className="ruteo" style={{ marginTop: 8 }}>
+            Con {f.kam_nombre ?? 'el KAM'}, esperando autorización
+          </div>
         )}
-
-        {f.estado_accion === 'en_revision_supervisor' && ['supervisor', 'administrador'].includes(rol) && (
-          superaLimite
-            ? <button className="btn compacto" onClick={() => onAccion('escalar')}>
-                Trasladar al KAM
-              </button>
-            : <button className="btn compacto" onClick={() => onAccion('autorizar')}>Autorizar</button>
-        )}
-
-        {f.estado_accion === 'en_revision_kam' && ['kam', 'administrador'].includes(rol) && (
-          <button className="btn compacto" onClick={() => onAccion('autorizar')}>Autorizar</button>
-        )}
-
-        {['en_revision_supervisor', 'en_revision_kam'].includes(f.estado_accion)
-          && ['supervisor', 'kam', 'administrador'].includes(rol) && (
-          <button className="btn ghost compacto" onClick={() => onAccion('rechazar')}>Rechazar</button>
-        )}
-
-        {f.estado_accion === 'autorizada' && (
-          <button className="btn compacto" onClick={() => onAccion('ejecutar')}>Marcar hecho</button>
-        )}
-
-        {f.estado_accion === 'en_revision_kam' && rol !== 'kam' && rol !== 'administrador' && (
-          <span className="tag t-rol">con el KAM</span>
-        )}
-        {f.estado_accion === 'en_revision_supervisor' && !['supervisor','administrador'].includes(rol) && (
-          <span className="tag t-rol">con el supervisor</span>
+        {f.estado_accion === 'en_revision_supervisor' && !['supervisor', 'administrador'].includes(rol) && (
+          <div className="ruteo" style={{ marginTop: 8 }}>
+            Con {f.supervisor_nombre ?? 'el supervisor'}, esperando revisión
+          </div>
         )}
       </div>
+
+      {acciones.length > 0 && (
+        <div className="acc">
+          <button className={`btn compacto${principal[2] ? '' : ' ghost'}`}
+                  onClick={() => onAccion(principal[0])}>{principal[1]}</button>
+          {otras.length > 0 && (
+            <button className="mas" aria-label="Más acciones"
+                    onClick={() => setAbierto(v => !v)}>···</button>
+          )}
+        </div>
+      )}
+      {abierto && otras.map(([k, t]) => (
+        <button key={k} className="btn ghost sm" style={{ marginTop: 8 }}
+                onClick={() => { setAbierto(false); onAccion(k); }}>{t}</button>
+      ))}
     </div>
   );
 }
 
-function Modal({ m, d, onCerrar, onEnviar }) {
+function Modal({ m, d, onCerrar, onEnviar, onReabrir }) {
   const { tipo, f } = m;
   const [tipoAccionId, setTipoAccionId] = useState(d.acciones?.[1]?.id ?? d.acciones?.[0]?.id ?? '');
   const [un, setUn] = useState(String(f.cantidad ?? ''));
+  const [upc, setUpc] = useState(String(f.upc_sugerido ?? ''));
   const [motivo, setMotivo] = useState('');
   const [movidas, setMovidas] = useState(String(f.cantidad_unidades ?? ''));
   const [vale, setVale] = useState('');
   const [causaId, setCausaId] = useState(d.causas?.[1]?.id ?? '');
+  const [cadena, setCadena] = useState(f.cadena_grupo ?? '');
+  const [region, setRegion] = useState(f.region ?? '');
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  // Avisa antes de proponer si la cantidad va a escalar al KAM
-  const cajas = f.unidades_por_caja ? (Number(un) / f.unidades_por_caja) : null;
-  const escalaKam = cajas === null || cajas > d.limiteCajas;
+  // La pregunta de unidades por caja solo aparece cuando falta el dato, y
+  // siempre con su respaldo a la vista. La inferencia automática falla 35% en
+  // lata de 355 ml, que es el formato más común: por eso la confirma un humano.
+  const preguntaUpc = tipo === 'proponer' && f.upc_pendiente;
+  const upcEfectivo = preguntaUpc ? Number(upc) : f.unidades_por_caja;
+  const cajas = upcEfectivo ? (Number(un) / upcEfectivo) : null;
+  const escalaKam = cajas === null || !Number.isFinite(cajas) || cajas > d.limiteCajas;
+  const limiteUn = upcEfectivo ? upcEfectivo * d.limiteCajas : null;
 
   const titulos = {
     proponer: 'Proponer acción', autorizar: 'Autorizar', escalar: 'Trasladar al KAM',
-    rechazar: 'Rechazar', ejecutar: 'Confirmar ejecución',
+    rechazar: 'Rechazar', ejecutar: 'Confirmar ejecución', clasificar: 'Clasificar la tienda',
   };
 
   async function enviar() {
     setError(''); setEnviando(true);
-    let err = null;
+    let r = null;
     if (tipo === 'proponer')
-      err = await onEnviar('POST', { casoId: f.caso_id, tipoAccionId, unidades: Number(un) });
+      r = await onEnviar('POST', { casoId: f.caso_id, tipoAccionId, unidades: Number(un),
+        unidadesPorCaja: preguntaUpc ? Number(upc) : null });
+    else if (tipo === 'clasificar')
+      r = await onEnviar('PATCH', { accion: 'clasificar', puntoVentaId: f.punto_venta_id,
+        cadenaGrupo: cadena, region });
     else if (tipo === 'ejecutar')
-      err = await onEnviar('PATCH', { accionId: f.accion_id, accion: 'ejecutar',
+      r = await onEnviar('PATCH', { accionId: f.accion_id, accion: 'ejecutar',
         movidas: Number(movidas), numeroVale: vale, causaId });
     else if (tipo === 'rechazar')
-      err = await onEnviar('PATCH', { accionId: f.accion_id, accion: 'rechazar', motivo });
+      r = await onEnviar('PATCH', { accionId: f.accion_id, accion: 'rechazar', motivo });
     else
-      err = await onEnviar('PATCH', { accionId: f.accion_id, accion: tipo });
-    if (err) setError(err);
+      r = await onEnviar('PATCH', { accionId: f.accion_id, accion: tipo });
+
+    if (r?.error) {
+      // El traslado a una tienda sin cadena no se queda atorado: manda a
+      // corregir el dato que falta y regresa al mismo caso.
+      if (r.datos?.requiereClasificar) { onReabrir('clasificar', f); return; }
+      setError(r.error);
+    }
     setEnviando(false);
   }
 
   return (
     <div className="modal" onClick={e => { if (e.target.className === 'modal') onCerrar(); }}>
-      <div className="caja">
+      <div className="caja" role="dialog" aria-label={titulos[tipo]}>
         <div className="ch">{titulos[tipo]}</div>
         <div className="cb">
           <div className="prod">
             <div className="d">{f.descripcion}</div>
             <div className="c">{f.pdv_nombre} · {unidades(f.cantidad)} · vence {fechaCorta(f.fecha_vencimiento)}</div>
           </div>
-          {error && <div className="err">{error}</div>}
+          {error && <div className="err" role="alert">{error}</div>}
+
+          {tipo === 'clasificar' && (<>
+            <div className="nota">
+              Al guardar, el sistema asigna solo el KAM y el supervisor de esta tienda.
+              No hay que elegirlos.
+            </div>
+            <label className="campo"><span>Cadena</span>
+              <select value={cadena} onChange={e => setCadena(e.target.value)}>
+                <option value="">Elegir…</option>
+                {d.cadenas?.map(c => <option key={c} value={c}>{c}</option>)}
+              </select></label>
+            <label className="campo"><span>Región</span>
+              <select value={region} onChange={e => setRegion(e.target.value)}>
+                <option value="">Elegir…</option>
+                {d.regiones?.map(r => <option key={r} value={r}>{r}</option>)}
+              </select></label>
+          </>)}
 
           {tipo === 'proponer' && (<>
             <label className="campo"><span>Acción</span>
               <select value={tipoAccionId} onChange={e => setTipoAccionId(e.target.value)}>
                 {d.acciones?.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
               </select></label>
+
+            {preguntaUpc && (
+              <label className="campo"><span>¿Cuántas unidades trae la caja?</span>
+                <input type="number" inputMode="numeric" min="1" max="999" value={upc}
+                       onChange={e => setUpc(e.target.value)} />
+                <span>
+                  {f.upc_sugerido
+                    ? `Sugerido ${f.upc_sugerido} — así vienen ${f.upc_coincidencias} de ${f.upc_muestra} ${f.upc_envase ?? ''} de ${f.upc_tamano ?? ''}`.trim()
+                    : 'No hay productos parecidos para sugerir un número. Cuéntalo en la caja.'}
+                </span>
+              </label>
+            )}
+
             <label className="campo"><span>Unidades a afectar (hay {f.cantidad})</span>
               <input type="number" inputMode="numeric" min="1" value={un}
                      onChange={e => setUn(e.target.value)} /></label>
+
             <div className={escalaKam ? 'warn' : 'nota'}>
-              {f.unidades_por_caja
+              {upcEfectivo
                 ? escalaKam
-                  ? `Son ${(Number(un) / f.unidades_por_caja).toFixed(2)} cajas y supera el límite de ${d.limiteCajas}. Lo tendrá que autorizar el KAM.`
-                  : `Son ${(Number(un) / f.unidades_por_caja).toFixed(2)} cajas. Lo puede autorizar el supervisor.`
-                : 'Este producto no tiene definidas sus unidades por caja, así que se escalará al KAM por precaución.'}
+                  ? `Son ${un} unidades. El límite del supervisor en este producto son ${d.limiteCajas} cajas = ${limiteUn} unidades, así que lo autoriza el KAM.`
+                  : `Son ${un} unidades = ${cajas.toFixed(2)} cajas. Dentro del límite de ${limiteUn} unidades: lo autoriza el supervisor.`
+                : 'Sin las unidades por caja el sistema no puede medir el límite, así que escala al KAM por precaución.'}
             </div>
           </>)}
 
-          {tipo === 'autorizar' && (
+          {tipo === 'autorizar' && (<>
             <div className="nota">
               {f.tipo_accion} por {unidades(f.cantidad_unidades)}
               {f.cantidad_cajas ? `, ${f.cantidad_cajas} cajas` : ''}. Propuesta por {f.propuesta_por}.
             </div>
-          )}
+            {!f.foto_evidencia_url && (
+              <div className="warn">Esta detección no trae foto del código de fecha.</div>
+            )}
+          </>)}
 
-          {tipo === 'escalar' && (
+          {tipo === 'escalar' && (<>
             <div className="warn">
               Son {f.cantidad_cajas ?? 'varias'} cajas y supera tu límite de {d.limiteCajas}.
-              Se traslada al KAM para que lo autorice.
             </div>
-          )}
+            <div className="ruteo">
+              {f.kam_nombre
+                ? `Pasa a ${f.kam_nombre}${f.cadena_grupo ? ` (${f.cadena_grupo})` : ''}`
+                : 'Esta tienda no tiene cadena asignada. Al confirmar te pediré clasificarla para saber a qué KAM pasa.'}
+            </div>
+          </>)}
 
           {tipo === 'rechazar' && (
-            <label className="campo"><span>Motivo del rechazo</span>
+            <label className="campo"><span>Motivo del rechazo (obligatorio)</span>
               <input value={motivo} onChange={e => setMotivo(e.target.value)}
-                     placeholder="Sin motivo no se puede rechazar" /></label>
+                     aria-invalid={error && !motivo.trim() ? 'true' : undefined}
+                     placeholder="Ej: mejor trasladarlo a Mixco" /></label>
           )}
 
           {tipo === 'ejecutar' && (<>
