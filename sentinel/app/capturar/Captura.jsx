@@ -290,6 +290,31 @@ function Buscar({ onElegir, onVolver }) {
   </>);
 }
 
+// La foto sale de la camara del sistema, no del video que ya esta abierto para
+// escanear: la camara nativa enfoca de cerca y un codigo de fecha impreso en
+// tinta clara necesita ese enfoque. Se reduce a 1000px de ancho y calidad 0.6,
+// que deja unos 60 KB: suficiente para leer la fecha, poco para una red movil.
+function comprimir(archivo) {
+  return new Promise((ok, mal) => {
+    const lector = new FileReader();
+    lector.onerror = () => mal(new Error('No se pudo leer la foto.'));
+    lector.onload = () => {
+      const img = new Image();
+      img.onerror = () => mal(new Error('No se pudo abrir la foto.'));
+      img.onload = () => {
+        const escala = Math.min(1, 1000 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        ok(c.toDataURL('image/jpeg', 0.6));
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
 function Cantidad({ pdv, prod, barra, hoyLista, meta, onListo, onCancelar }) {
   const hoy = new Date();
   const upc = prod?.unidades_por_caja ?? null;
@@ -303,6 +328,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, meta, onListo, onCancelar }) {
   const [anio, setAnio] = useState('');
   const [precision, setPrecision] = useState('dia');
   const [region, setRegion] = useState(meta.regionPropuesta ?? '');
+  const [foto, setFoto] = useState(null);
   const [error, setError] = useState('');
   const [campoMalo, setCampoMalo] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -356,7 +382,7 @@ function Cantidad({ pdv, prod, barra, hoyLista, meta, onListo, onCancelar }) {
         body: JSON.stringify({
           pdvId: pdv.id, productoId: prod?.id ?? null, barra,
           cantidad: enUnidades, vencimiento: fecha, fechaPrecision: precision,
-          region: pdv.region ? null : (region || null), confirmaAumento,
+          region: pdv.region ? null : (region || null), confirmaAumento, foto,
         }),
       });
       const d = await r.json();
@@ -502,6 +528,32 @@ function Cantidad({ pdv, prod, barra, hoyLista, meta, onListo, onCancelar }) {
         </select>
       </div>
     )}
+
+    {/* Opcional al capturar y obligatoria antes de autorizar: quien anota va
+        de prisa, quien firma necesita ver el empaque. */}
+    <div>
+      <label className="btn ghost sm" style={{ cursor: 'pointer' }}>
+        {foto ? 'Tomar la foto otra vez' : 'Foto del código de fecha (opcional)'}
+        <input type="file" accept="image/*" capture="environment" hidden
+               onChange={async e => {
+                 const archivo = e.target.files?.[0];
+                 e.target.value = '';
+                 if (!archivo) return;
+                 try { setFoto(await comprimir(archivo)); }
+                 catch { setError('No se pudo procesar la foto. Intenta de nuevo.'); }
+               }} />
+      </label>
+      {foto && (
+        <div className="prod" style={{ marginTop: 8, display: 'flex', gap: 12, alignItems: 'center' }}>
+          <img src={foto} alt="Foto del código de fecha" width={72} height={72}
+               style={{ objectFit: 'cover', borderRadius: 10, flex: 'none' }} />
+          <div style={{ flex: 1 }}>
+            <div className="c">Se guarda con esta línea.</div>
+          </div>
+          <button className="btn ghost compacto" onClick={() => setFoto(null)}>Quitar</button>
+        </div>
+      )}
+    </div>
 
     <button id="guardar" className="btn" disabled={guardando} onClick={() => guardar(false)}>
       {guardando ? 'Guardando…' : 'Guardar y escanear'}

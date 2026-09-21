@@ -51,6 +51,21 @@ export async function GET(req) {
   });
 }
 
+// La imagen vive en su propia tabla; la deteccion se queda con la ruta. Una
+// foto nueva reemplaza la anterior: es evidencia del mismo empaque, no historial.
+async function guardarFoto(tx, deteccionId, foto, usuarioId) {
+  await tx`
+    insert into sentinel.deteccion_foto (deteccion_id, contenido, tipo, bytes, subida_por)
+    values (${deteccionId}, ${foto.datos}, ${foto.tipo}, ${foto.bytes}, ${usuarioId})
+    on conflict (deteccion_id) do update
+      set contenido = excluded.contenido, tipo = excluded.tipo,
+          bytes = excluded.bytes, subida_por = excluded.subida_por, subida_en = now()`;
+  await tx`
+    update sentinel.deteccion
+       set foto_evidencia_url = ${'/api/foto/' + deteccionId}
+     where id = ${deteccionId}`;
+}
+
 export async function POST(req) {
   const u = await usuarioActual();
   if (!u) return NextResponse.json({ error: 'Sesión vencida.' }, { status: 401 });
@@ -65,6 +80,18 @@ export async function POST(req) {
   const barra = b.barra ? String(b.barra) : null;
   const precision = b.fechaPrecision === 'mes' ? 'mes' : 'dia';
   const region = String(b.region ?? '').trim() || null;
+
+  // La foto llega como data URL ya comprimida por el telefono. Se valida el
+  // tamano aqui tambien: el navegador puede mentir y el limite protege la base.
+  let foto = null;
+  if (b.foto) {
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.foto));
+    if (!m) return NextResponse.json({ error: 'La foto no se pudo leer. Tómala otra vez.' }, { status: 400 });
+    const bytes = Math.floor(m[2].length * 0.75);
+    if (bytes > 400000)
+      return NextResponse.json({ error: 'La foto pesa demasiado. Tómala otra vez.' }, { status: 400 });
+    foto = { tipo: m[1], datos: m[2], bytes };
+  }
 
   if (!pdvId) return NextResponse.json({ error: 'Falta la tienda.' }, { status: 400 });
   if (!Number.isInteger(cantidad) || cantidad < 1)
@@ -115,6 +142,7 @@ export async function POST(req) {
         await tx`
           insert into sentinel.deteccion_historial (deteccion_id, cantidad, observado_por)
           values (${existente.id}, ${cantidad}, ${u.id})`;
+        if (foto) await guardarFoto(tx, existente.id, foto, u.id);
         return { id: existente.id, actualizado: true, anterior: existente.cantidad };
       }
 
@@ -128,6 +156,7 @@ export async function POST(req) {
       await tx`
         insert into sentinel.deteccion_historial (deteccion_id, cantidad, observado_por)
         values (${nueva.id}, ${cantidad}, ${u.id})`;
+      if (foto) await guardarFoto(tx, nueva.id, foto, u.id);
 
       // El caso se abre solo si el estado lo exige. Lo "vivo" solo se monitorea.
       // Con precision de mes el riesgo se mide contra el dia 1: mejor un falso
