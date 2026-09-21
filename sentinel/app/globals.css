@@ -1,131 +1,278 @@
+/* SENTINEL — hoja de estilo unica.
+   Campo y gerencia comparten sistema; cambia la densidad, no el lenguaje. */
+
 :root{
+  /* Marca */
   --azul:#004B93; --azul-osc:#00356A; --azul-cl:#E8F0F8;
   --rojo:#E32934;
-  --ink:#13202e; --ink-2:#55616e; --ink-3:#87919c;
-  --page:#f4f6f9; --card:#fff; --line:#dfe4ea;
+
+  /* Texto y superficies.
+     ink-3 subio de #87919c (3.0:1, no pasa AA) a #5A6673 (5.2:1): pinta la
+     linea secundaria de toda lista, o sea tienda, unidades y vencimiento. */
+  --ink:#0B1622; --ink-2:#404B57; --ink-3:#5A6673;
+  --page:#f4f6f9; --card:#fff;
+  --line:#C9D1DA; --line-fuerte:#9AA6B2;
+
+  /* Semaforo. El color nunca va solo: siempre acompanado de texto e icono. */
   --vivo:#0F6E56; --vivo-bg:#E1F5EE;
   --riesgo:#854F0B; --riesgo-bg:#FAEEDA;
   --critico:#B01C26; --critico-bg:#FDECEC;
   --vencido:#5F5E5A; --vencido-bg:#F1EFE8;
-  --r:14px;
+
+  /* Escala tipografica */
+  --t-cap:13px; --t-sec:15px; --t-body:17px; --t-h:20px;
+  --t-dato:28px; --t-hero:40px;
+
+  /* Espaciado */
+  --e0:4px; --e1:8px; --e2:12px; --e3:16px; --e4:24px; --e5:32px;
+
+  /* Area tactil. 48px en campo; 40px basta en escritorio con raton. */
+  --tap:48px; --tap-desk:40px;
+
+  --r:14px; --r-sm:10px;
 }
+
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;background:var(--page);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
-  font-size:17px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  font-size:var(--t-body);line-height:1.45;-webkit-font-smoothing:antialiased}
+
+/* Foco hacia afuera y de 3px: con el dedo y con sol encima, 2px hacia
+   adentro no se ve. */
+:focus-visible{outline:3px solid var(--azul);outline-offset:2px;border-radius:6px}
+
 .movil{max-width:520px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
-.bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--azul);
-  color:#fff;position:sticky;top:0;z-index:20}
-.bar .who{font-size:13px;color:#A9C6E3}
-.bar .tienda{font-weight:600;font-size:15px;line-height:1.2}
-.bar button{margin-left:auto;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
-  border-radius:99px;padding:7px 14px;font-size:13px;color:#fff;font-family:inherit;cursor:pointer}
-main{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px}
-h1{font-size:21px;font-weight:650;margin:0 0 2px;letter-spacing:-.01em}
-.sub{font-size:14px;color:var(--ink-2);margin:0 0 8px}
+
+/* Barra superior. El espacio grande es de la tienda, no del nombre del
+   usuario: el usuario ya sabe quien es. */
+.bar{display:flex;align-items:center;gap:var(--e1);padding:var(--e2) var(--e3);
+  background:var(--azul);color:#fff;position:sticky;top:0;z-index:20}
+.bar .who{font-size:var(--t-cap);color:#BBD3EA}
+.bar .tienda{font-weight:600;font-size:var(--t-sec);line-height:1.2}
+.bar button{margin-left:auto;background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.34);border-radius:99px;
+  min-height:var(--tap);padding:0 var(--e3);font-size:var(--t-cap);color:#fff;
+  font-family:inherit;cursor:pointer;flex:none}
+.bar .atras{margin-left:-6px;margin-right:0;background:none;border:none;color:#fff;
+  min-width:var(--tap);min-height:var(--tap);padding:0;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;border-radius:99px;flex:none}
+.bar .atras:active{background:rgba(255,255,255,.18)}
+
+main{flex:1;padding:var(--e3);display:flex;flex-direction:column;gap:var(--e2);
+  padding-bottom:var(--e5)}
+h1{font-size:var(--t-h);font-weight:650;margin:0 0 2px;letter-spacing:-.01em}
+h2{font-size:19px;font-weight:650;margin:0 0 var(--e0);letter-spacing:-.01em}
+.sub{font-size:14px;color:var(--ink-2);margin:0 0 var(--e1)}
 .lbl{display:block;font-size:14px;color:var(--ink-2);margin-bottom:6px}
-input,select,button{font-family:inherit;font-size:17px}
+
+input,select,button{font-family:inherit;font-size:var(--t-body)}
 input[type=text],input[type=search],input[type=password],input[type=number],select{
-  width:100%;padding:14px;border:1px solid var(--line);border-radius:var(--r);
+  width:100%;min-height:var(--tap);padding:var(--e2) 14px;
+  border:1px solid var(--line);border-radius:var(--r);
   background:var(--card);color:var(--ink);appearance:none}
-input:focus,select:focus{outline:2px solid var(--azul);outline-offset:-1px}
-input[type=number].grande{font-size:30px;font-weight:650;text-align:center;padding:12px}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:17px;
-  border-radius:var(--r);border:none;background:var(--azul);color:#fff;font-weight:600;cursor:pointer}
-.btn[disabled]{opacity:.45}
-.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);font-weight:500}
-.btn.sm{padding:12px;font-size:15px}
-.list{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.row{display:flex;align-items:center;gap:12px;padding:14px 15px;border-bottom:1px solid var(--line);
-  cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+input::placeholder{color:var(--ink-3)}
+input[type=number].grande{font-size:var(--t-hero);font-weight:650;text-align:center;
+  padding:var(--e2);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:var(--e1);width:100%;
+  min-height:56px;padding:var(--e3);border-radius:var(--r);border:none;
+  background:var(--azul);color:#fff;font-weight:600;cursor:pointer}
+.btn[disabled]{opacity:.5}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line-fuerte);
+  font-weight:500}
+.btn.sm{min-height:var(--tap);padding:var(--e2);font-size:var(--t-sec)}
+.btn.compacto{width:auto;min-height:var(--tap);padding:0 var(--e3);font-size:14px}
+/* Boton de desbordamiento: el resto de acciones de una tarjeta */
+.mas{width:var(--tap);min-height:var(--tap);flex:none;background:var(--card);
+  border:1px solid var(--line-fuerte);border-radius:var(--r);color:var(--ink-2);
+  cursor:pointer;font-size:20px;line-height:1}
+
+.list{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden}
+.row{display:flex;align-items:center;gap:var(--e2);min-height:var(--tap);
+  padding:14px 15px;border-bottom:1px solid var(--line);cursor:pointer;background:none;
+  border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
 .row:last-child{border-bottom:none}
-.nm{font-size:16px;font-weight:550;line-height:1.25}
-.mt{font-size:13px;color:var(--ink-3);margin-top:2px}
-.prod{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px}
-.prod .d{font-size:17px;font-weight:600;line-height:1.3}
-.prod .c{font-size:13px;color:var(--ink-3);margin-top:4px;font-variant-numeric:tabular-nums}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;
-  font-size:13px;font-weight:600}
+.nm{font-size:16px;font-weight:550;line-height:1.25;color:var(--ink)}
+.mt{font-size:var(--t-cap);color:var(--ink-3);margin-top:2px}
+
+.prod{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:var(--e3)}
+.prod .d{font-size:var(--t-body);font-weight:600;line-height:1.3}
+.prod .c{font-size:var(--t-cap);color:var(--ink-3);margin-top:var(--e0);
+  font-variant-numeric:tabular-nums}
+
+/* Semaforo compacto, para listas */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;
+  font-size:14px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 .p-vivo{background:var(--vivo-bg);color:var(--vivo)}
 .p-en_riesgo{background:var(--riesgo-bg);color:var(--riesgo)}
 .p-critico{background:var(--critico-bg);color:var(--critico)}
 .p-vencido{background:var(--vencido-bg);color:var(--vencido)}
-.warn{background:var(--riesgo-bg);color:var(--riesgo);border-radius:var(--r);padding:13px 15px;font-size:14px}
-.err{background:var(--critico-bg);color:var(--critico);border-radius:var(--r);padding:13px 15px;font-size:14px}
+
+/* Semaforo grande, para el paso de captura: es el dato que decide si la
+   linea importa, no puede ir del mismo tamano que un metadato. */
+.estado{border-radius:var(--r);border-left:4px solid;padding:var(--e2) var(--e3)}
+.estado .e{font-size:19px;font-weight:650;line-height:1.2;
+  font-variant-numeric:tabular-nums}
+.estado .x{font-size:14px;margin-top:3px}
+.e-vivo{background:var(--vivo-bg);border-color:var(--vivo);color:var(--vivo)}
+.e-en_riesgo{background:var(--riesgo-bg);border-color:var(--riesgo);color:var(--riesgo)}
+.e-critico{background:var(--critico-bg);border-color:var(--critico);color:var(--critico)}
+.e-vencido{background:var(--vencido-bg);border-color:var(--vencido);color:var(--vencido)}
+/* fecha_precision = 'mes': mismo color, textura distinta, leyenda obligatoria */
+.aprox{background-image:repeating-linear-gradient(135deg,
+  rgba(255,255,255,0) 0 9px, rgba(255,255,255,.55) 9px 18px)}
+
+/* Segmentado unidades / cajas */
+.seg{display:flex;background:#e7ebf0;padding:var(--e0);border-radius:var(--r);gap:var(--e0)}
+.seg button{flex:1;min-height:44px;border:none;border-radius:var(--r-sm);background:none;
+  font-family:inherit;font-size:var(--t-sec);color:var(--ink-2);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;
+  box-shadow:0 1px 3px rgba(11,22,34,.12)}
+.seg button[disabled]{opacity:.45;cursor:not-allowed}
+.conv{text-align:center;font-size:var(--t-sec);color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+
+/* Fecha en tres casillas, teclado numerico, avance automatico */
+.fecha3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--e1)}
+.fecha3 input,.fecha3 select{text-align:center;font-size:var(--t-dato);font-weight:600;
+  padding:var(--e1);font-variant-numeric:tabular-nums}
+.enlace{background:none;border:none;padding:var(--e1) 0;font-size:14px;color:var(--azul);
+  text-decoration:underline;cursor:pointer;font-family:inherit;min-height:44px;
+  text-align:left}
+/* Fechas ya usadas hoy en esta tienda: los lotes se repiten en el anaquel */
+.chips{display:flex;gap:var(--e1);flex-wrap:wrap}
+.chip{min-height:44px;padding:0 14px;border-radius:99px;border:1px solid var(--line-fuerte);
+  background:var(--card);font-size:14px;color:var(--ink);cursor:pointer;font-family:inherit}
+
+.warn{background:var(--riesgo-bg);color:var(--riesgo);border-radius:var(--r);
+  padding:var(--e2) var(--e3);font-size:14px}
+.err{background:var(--critico-bg);color:var(--critico);border-radius:var(--r);
+  padding:var(--e2) var(--e3);font-size:14px}
+/* Error del campo, junto al campo: con el teclado abierto el de arriba no se ve */
+.err-campo{font-size:var(--t-cap);color:var(--critico);margin-top:var(--e0)}
+input[aria-invalid="true"]{border-color:var(--critico);border-width:2px}
+.nota{background:var(--azul-cl);color:var(--azul-osc);border-radius:var(--r-sm);
+  padding:var(--e2) var(--e3);font-size:14px}
+/* A quien pasa el caso. Se informa, no se elige. */
+.ruteo{background:var(--azul-cl);color:var(--azul-osc);border-radius:var(--r-sm);
+  padding:var(--e1) var(--e2);font-size:var(--t-cap)}
+
 .prev{background:var(--azul-cl);border-radius:var(--r);padding:14px 15px}
-.prev b{font-size:28px;font-weight:650;display:block}
+.prev b{font-size:var(--t-dato);font-weight:650;display:block;
+  font-variant-numeric:tabular-nums}
 .prev span{font-size:14px;color:var(--ink-2);display:block}
-.cam{width:100%;aspect-ratio:4/3;background:#101215;border-radius:var(--r);object-fit:cover;display:block}
-.hint{font-size:13px;color:var(--ink-3);text-align:center}
-.foot{padding:12px 16px 20px;border-top:1px solid var(--line);background:var(--card);
-  position:sticky;bottom:0;display:flex;align-items:center;gap:12px}
-.foot .n{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums}
-.foot .t{font-size:13px;color:var(--ink-2);line-height:1.25}
-.foot button{margin-left:auto;width:auto;padding:12px 18px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--azul-osc);
-  color:#fff;padding:11px 20px;border-radius:99px;font-size:15px;font-weight:550;z-index:50}
-.centro{display:flex;flex-direction:column;justify-content:center;min-height:100dvh;padding:24px;
-  max-width:420px;margin:0 auto;gap:14px}
-.vacio{text-align:center;color:var(--ink-3);font-size:14px;padding:26px 10px}
 
-/* Boton de regresar en la barra superior */
-.bar .atras{margin-left:-6px;margin-right:2px;background:none;border:none;color:#fff;
-  padding:8px;display:flex;align-items:center;cursor:pointer;border-radius:99px;flex:none}
-.bar .atras:active{background:rgba(255,255,255,.16)}
+.cam{width:100%;aspect-ratio:4/3;background:#101215;border-radius:var(--r);
+  object-fit:cover;display:block}
+.hint{font-size:14px;color:var(--ink-2);text-align:center}
 
-/* Pestanas de la lista */
-.tabs{display:flex;gap:6px;background:#e7ebf0;padding:4px;border-radius:var(--r)}
-.tabs button{flex:1;padding:11px;border:none;border-radius:10px;background:none;
-  font-family:inherit;font-size:15px;color:var(--ink-2);cursor:pointer}
+.foot{padding:var(--e2) var(--e3) 20px;border-top:1px solid var(--line);
+  background:var(--card);position:sticky;bottom:0;display:flex;align-items:center;
+  gap:var(--e2)}
+.foot .n{font-size:var(--t-dato);font-weight:650;font-variant-numeric:tabular-nums}
+.foot .t{font-size:var(--t-cap);color:var(--ink-2);line-height:1.25}
+.foot button{margin-left:auto;width:auto;padding:0 18px}
+/* Capturas guardadas en el telefono, todavia sin enviar. La pantalla ya
+   reserva el lugar aunque la cola offline llegue despues. */
+.pend{display:inline-flex;align-items:center;gap:6px;background:var(--riesgo-bg);
+  color:var(--riesgo);border-radius:99px;padding:5px 11px;font-size:var(--t-cap);
+  font-weight:600}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;
+  background:var(--azul-osc);color:#fff;padding:var(--e2) 20px;border-radius:99px;
+  font-size:var(--t-sec);font-weight:550;z-index:50;max-width:88vw;text-align:center}
+.centro{display:flex;flex-direction:column;justify-content:center;min-height:100dvh;
+  padding:var(--e4);max-width:420px;margin:0 auto;gap:14px}
+.vacio{text-align:center;color:var(--ink-2);font-size:14px;padding:26px 10px}
+
+.tabs{display:flex;gap:var(--e0);background:#e7ebf0;padding:var(--e0);
+  border-radius:var(--r)}
+.tabs button{flex:1;min-height:var(--tap);padding:0 var(--e1);border:none;
+  border-radius:var(--r-sm);background:none;font-family:inherit;font-size:var(--t-sec);
+  color:var(--ink-2);cursor:pointer}
 .tabs button.on{background:var(--card);color:var(--ink);font-weight:600;
-  box-shadow:0 1px 3px rgba(19,32,46,.10)}
+  box-shadow:0 1px 3px rgba(11,22,34,.12)}
 
-/* Espacio extra al final para que el teclado nunca deje el boton inalcanzable */
-main{padding-bottom:34px}
-/* El campo de cantidad se desplaza hacia arriba al enfocarse en pantallas bajas */
-input[type=number].grande{scroll-margin-top:76px}
-#guardar{scroll-margin-bottom:24px}
-
-/* Maestros: pantalla ancha, no de telefono */
+/* Maestros y gerencia: pantalla ancha de verdad */
 .ancho{max-width:960px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
 .ancho .bar{border-radius:0}
-.tabs-top{margin:14px 16px 0}
-h2{font-size:19px;font-weight:650;margin:0 0 4px;letter-spacing:-.01em}
-.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.tools input[type=search]{flex:1;min-width:190px;font-size:15px;padding:11px 13px}
-.tools input:disabled{opacity:.4}
-.chk{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--ink-2);white-space:nowrap}
-.chk input{width:17px;height:17px;padding:0}
-.btn.compacto{width:auto;padding:10px 15px;font-size:14px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:4px 0 8px}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-.kpi.alerta{border-color:#EFCB8F;background:var(--riesgo-bg)}
-.kpi .n{font-size:27px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.kpi .l{font-size:13px;color:var(--ink-2);margin-top:2px}
+.tabs-top{margin:14px var(--e3) 0}
+.tools{display:flex;gap:var(--e2);align-items:center;flex-wrap:wrap}
+.tools input[type=search]{flex:1;min-width:190px;font-size:var(--t-sec);
+  min-height:var(--tap-desk);padding:11px 13px}
+.tools input:disabled{opacity:.45}
+.chk{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--ink-2);
+  white-space:nowrap;min-height:var(--tap);cursor:pointer}
+.chk input{width:20px;height:20px;min-height:0;padding:0}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:var(--e2);margin:var(--e0) 0 var(--e1)}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px var(--e3)}
+.kpi.alerta{border-color:#D9A84E;background:var(--riesgo-bg)}
+.kpi .n{font-size:27px;font-weight:650;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.kpi .l{font-size:var(--t-cap);color:var(--ink-2);margin-top:2px}
 .kpi.alerta .l{color:var(--riesgo)}
-.nota{background:var(--azul-cl);color:var(--azul-osc);border-radius:12px;padding:14px 16px;font-size:14px}
-.fila{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border-bottom:1px solid var(--line)}
+
+.fila{display:flex;gap:var(--e2);align-items:flex-start;padding:13px 15px;
+  border-bottom:1px solid var(--line)}
 .fila:last-child{border-bottom:none}
 .fila .info{flex:1;min-width:0}
 .fila .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;margin-left:6px}
+
+.tag{display:inline-block;padding:3px var(--e1);border-radius:99px;font-size:12px;
+  font-weight:600;margin-left:6px}
 .t-falta{background:var(--riesgo-bg);color:var(--riesgo)}
 .t-off{background:var(--vencido-bg);color:var(--vencido)}
 .t-rol{background:var(--azul-cl);color:var(--azul-osc)}
-.modal{position:fixed;inset:0;background:rgba(19,32,46,.45);display:flex;align-items:center;
-  justify-content:center;padding:18px;z-index:80}
-.caja{background:var(--card);border-radius:14px;width:100%;max-width:440px;max-height:88dvh;
-  display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.22)}
-.ch{padding:15px 19px;border-bottom:1px solid var(--line);font-weight:650}
-.cb{padding:17px 19px;display:grid;gap:13px;overflow:auto}
-.cf{padding:13px 19px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end}
-.campo{display:grid;gap:5px}
-.campo span{font-size:13px;color:var(--ink-2)}
-.campo input,.campo select{font-size:15px;padding:10px 12px}
 
-/* Casos */
-.fila.caso{flex-wrap:wrap}
-.fila.caso .acc{align-items:center}
-.hist{font-size:13px;color:var(--ink-3);margin-top:6px;padding-left:11px;border-left:2px solid var(--line)}
+.modal{position:fixed;inset:0;background:rgba(11,22,34,.5);display:flex;
+  align-items:center;justify-content:center;padding:18px;z-index:80}
+.caja{background:var(--card);border-radius:var(--r);width:100%;max-width:440px;
+  max-height:88dvh;display:flex;flex-direction:column;
+  box-shadow:0 12px 40px rgba(0,0,0,.24)}
+.ch{padding:var(--e3) 19px;border-bottom:1px solid var(--line);font-weight:650}
+.cb{padding:var(--e3) 19px;display:grid;gap:13px;overflow:auto}
+.cf{padding:13px 19px;border-top:1px solid var(--line);display:flex;gap:9px;
+  justify-content:flex-end}
+.campo{display:grid;gap:5px}
+.campo span{font-size:var(--t-cap);color:var(--ink-2)}
+.campo input,.campo select{font-size:var(--t-sec);min-height:var(--tap-desk);
+  padding:10px var(--e2)}
 .caja .prod{background:var(--page);border:none}
 .caja .warn,.caja .nota{font-size:14px}
+
+/* Casos: tarjeta en telefono, fila en escritorio.
+   Sus usuarios principales son supervisores de merca, que estan en campo. */
+.fila.caso{flex-wrap:wrap}
+.fila.caso .acc{align-items:center}
+.hist{font-size:var(--t-cap);color:var(--ink-3);margin-top:6px;padding-left:11px;
+  border-left:2px solid var(--line)}
+@media (max-width:720px){
+  .ancho main{padding:var(--e2)}
+  .list .fila.caso{display:block;padding:var(--e3) 15px}
+  .fila.caso .cab{display:flex;align-items:center;gap:var(--e1);margin-bottom:6px}
+  .fila.caso .acc{margin-top:var(--e2);justify-content:stretch;flex-wrap:nowrap;
+    gap:var(--e1)}
+  .fila.caso .acc .btn.compacto{flex:1;width:auto}
+  .fila.caso .acc .pill{display:none}
+  .tabs-top{margin:var(--e2) var(--e2) 0}
+  .tabs button{font-size:14px}
+}
+
+/* Con raton se puede apretar la densidad; con dedo nunca. */
+@media (any-pointer:fine){
+  .ancho .btn.compacto,.ancho .mas{min-height:var(--tap-desk)}
+  .ancho .chk{min-height:auto}
+}
+
+/* El teclado numerico no debe dejar el boton fuera de alcance */
+input[type=number].grande{scroll-margin-top:76px}
+#guardar{scroll-margin-bottom:var(--e4)}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
