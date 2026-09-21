@@ -166,9 +166,17 @@ function Caso({ f, rol, veDinero, onAccion }) {
           {veDinero && f.valor_en_riesgo ? ` · Q ${Number(f.valor_en_riesgo).toLocaleString('es-GT')}` : ''}
         </div>
 
-        {f.por_clasificar && (
+        {/* por_clasificar se prende si falta el KAM o si falta el supervisor.
+            No son lo mismo: sin KAM el caso no puede escalar, sin región solo
+            queda sin supervisor de zona y el caso sigue caminando. */}
+        {f.por_clasificar && !f.kam_nombre && (
           <div className="warn" style={{ marginTop: 8 }}>
-            Tienda sin clasificar: el sistema no sabe a qué KAM pertenece.
+            Esta tienda no tiene cadena asignada, así que no hay KAM a quien escalar.
+          </div>
+        )}
+        {f.por_clasificar && f.kam_nombre && !f.supervisor_nombre && (
+          <div className="nota" style={{ marginTop: 8 }}>
+            Tienda sin región: no tiene supervisor de zona asignado.
           </div>
         )}
 
